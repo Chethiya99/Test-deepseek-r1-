@@ -16,11 +16,19 @@ from langchain_community.agent_toolkits import create_sql_agent
 from langchain.agents import AgentType
 from crewai import Agent, Task, Crew, Process
 from openai import OpenAI  # Import OpenAI for DeepSeek
+from langchain.chat_models import ChatOpenAI  # Import the ChatOpenAI wrapper
 
 # Initialize DeepSeek client
 client = OpenAI(
     api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d",  # Replace with your DeepSeek API key
     base_url="https://api.kluster.ai/v1"  # Replace with the correct DeepSeek API base URL
+)
+
+# Wrap the OpenAI client in a LangChain-compatible LLM
+llm = ChatOpenAI(
+    client=client,  # Pass the OpenAI client
+    model="deepseek-ai/DeepSeek-R1",  # Specify the model
+    temperature=0.7  # Adjust temperature as needed
 )
 
 # Page Configuration
@@ -168,7 +176,7 @@ if st.session_state.selected_db and api_key and not st.session_state.db_initiali
 
         # Create SQL Agent
         st.session_state.agent_executor = create_sql_agent(
-            llm=client,  # Use DeepSeek client
+            llm=llm,  # Use the LangChain-compatible LLM
             db=st.session_state.db,
             agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
             verbose=True
@@ -181,17 +189,6 @@ if st.session_state.selected_db and api_key and not st.session_state.db_initiali
 # Function to render the "Enter Query" section
 def render_query_section():
     st.markdown("#### Get to know the Merchant Target List:", unsafe_allow_html=True)
-    
-    # Predefined questions
-    predefined_questions = [
-    ]
-    
-    # Display buttons for predefined questions
-    #st.markdown("**Predefined Questions:**")
-    for question in predefined_questions:
-        if st.button(question, key=f"predefined_{question}"):
-            st.session_state.user_query = question  # Store the question in session state
-            st.session_state.trigger_rerun = True  # Trigger a re-run to process the query
     
     # Text area for user input
     user_query = st.text_area("Enter your query:", placeholder="E.g., Give first three merchant names and their emails, ratings, cuisine type and reviews.", key=f"query_{len(st.session_state.interaction_history)}", value=st.session_state.get('user_query', ''))
@@ -218,7 +215,7 @@ def render_query_section():
                         goal="Extract merchants, emails, reviews and anything posible from the raw output if they are only available.",
                         backstory="You are an expert in extracting structured information from text.",
                         provider="DeepSeek",
-                        llm=client  # Use DeepSeek client
+                        llm=llm  # Use the LangChain-compatible LLM
                     )
                     
                     extract_task = Task(
@@ -261,9 +258,6 @@ if st.session_state.interaction_history:
             
             # Only display extracted merchants if there is data and it does not contain ''
             if interaction['content']['extraction_results'] and interaction['content']['extraction_results'].raw and 'errorhappened' not in interaction['content']['extraction_results'].raw:
-                #st.markdown("**Extracted Merchants:**")
-                #st.write(interaction['content']['extraction_results'].raw)
-                
                 # Show the "Generate Emails" button for this specific interaction
                 if st.button(f"Generate Emails For Above Extracted Merchants", key=f"generate_emails_{idx}"):
                     with st.spinner("Generating emails..."):
@@ -275,7 +269,7 @@ if st.session_state.interaction_history:
                                 backstory="You are a marketing expert named 'Jayan Nimna' of Pulse iD fintech company skilled in crafting professional and engaging emails for merchants.",
                                 verbose=True,
                                 allow_delegation=False,
-                                llm=client  # Use DeepSeek client
+                                llm=llm  # Use the LangChain-compatible LLM
                             )
 
                             # Read the task description from the selected template file
@@ -367,7 +361,6 @@ render_query_section()
 if st.session_state.trigger_rerun:
     st.session_state.trigger_rerun = False  # Reset the trigger
     st.rerun()  # Force a re-run of the script
-
 
 # Footer Section 
 st.markdown("---")

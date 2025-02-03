@@ -79,11 +79,7 @@ MODEL_NAME = "deepseek-ai/DeepSeek-R1"
 DATABASE = "merchant_data_singapore.db"
 
 # Initialize DeepSeek API client
-deepseek_client = ChatDeepSeek(
-    temperature=0.6,
-    model_name=MODEL_NAME,
-    api_key=API_KEY
-)
+deepseek_client = ChatDeepSeek()
 
 # Page Configuration
 st.set_page_config(

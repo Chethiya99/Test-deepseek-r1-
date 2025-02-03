@@ -176,7 +176,7 @@ if st.session_state.selected_db and api_key and not st.session_state.db_initiali
 
         # Create SQL Agent
         st.session_state.agent_executor = create_sql_agent(
-            llm=client,  # Use DeepSeek client
+            llm=llm,  # Use DeepSeek client
             db=st.session_state.db,
             agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
             verbose=True

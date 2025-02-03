@@ -1,3 +1,4 @@
+
 __import__('pysqlite3')
 import sys
 import os
@@ -6,11 +7,6 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-from openai import OpenAI
-from langchain_core.language_models import BaseLanguageModel
-from langchain_core.callbacks import CallbackManager
-from langchain_core.prompts import PromptTemplate
-from langchain_core.messages import HumanMessage, SystemMessage
 
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import re
@@ -18,68 +14,10 @@ import pandas as pd
 import streamlit as st
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
+from langchain_groq import ChatGroq
 from langchain.agents import AgentType
 from langchain_community.llms import Ollama
 from crewai import Agent, Task, Crew, Process, LLM
-
-# Custom DeepSeek LLM wrapper using your ChatDeepSeek class
-class ChatDeepSeek:
-    def __init__(self, temperature=0.6, model_name="deepseek-ai/DeepSeek-R1", api_key=None):
-        self.temperature = temperature
-        self.model_name = model_name
-        self.api_key = api_key
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url="https://api.kluster.ai/v1"  # Ensure this is the correct base URL
-        )
-
-    def generate(self, prompt, **kwargs):
-        messages = [{"role": "user", "content": prompt}]
-        completion = self.client.chat.completions.create(
-            model=self.model_name,
-            max_tokens=kwargs.get("max_tokens", 2000),
-            temperature=self.temperature,
-            top_p=1,
-            messages=messages
-        )
-        return completion.choices[0].message.content
-
-    async def agenerate(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
-
-    def __call__(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
-
-    def agenerate_prompt(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
-
-    def apredict(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
-
-    def apredict_messages(self, messages, **kwargs):
-        prompt = "\n".join([msg.content for msg in messages])
-        return self.generate(prompt, **kwargs)
-
-    def generate_prompt(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
-
-    def invoke(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
-
-    def predict(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
-
-    def predict_messages(self, messages, **kwargs):
-        prompt = "\n".join([msg.content for msg in messages])
-        return self.generate(prompt, **kwargs)
-
-# Hardcoded API key, model, and database
-API_KEY = "219d97a9-7403-4cb2-bc19-4438f8e97a4d"  # Replace with your actual API key
-MODEL_NAME = "deepseek-ai/DeepSeek-R1"
-DATABASE = "merchant_data_singapore.db"
-
-# Initialize DeepSeek API client
-deepseek_client = ChatDeepSeek()
 
 # Page Configuration
 st.set_page_config(
@@ -102,8 +40,12 @@ if 'extraction_results' not in st.session_state:
     st.session_state.extraction_results = None
 if 'email_results' not in st.session_state:
     st.session_state.email_results = None
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ""
 if 'interaction_history' not in st.session_state:
     st.session_state.interaction_history = []  # Store all interactions (queries, results, emails)
+if 'selected_db' not in st.session_state:
+    st.session_state.selected_db = "merchant_data_singapore.db"  # Default database
 if 'db_initialized' not in st.session_state:
     st.session_state.db_initialized = False  # Track if the database is initialized
 if 'selected_template' not in st.session_state:
@@ -187,26 +129,49 @@ st.markdown(
 # Sidebar Configuration
 st.sidebar.header("Settings")
 
+def get_api_key():
+    """Function to get API Key from user input"""
+    return st.sidebar.text_input("Enter Your API Key:", type="password")
+
+# Get API Key
+api_key = get_api_key()
+if api_key:
+    st.session_state.api_key = api_key
+
+# Database Selection
+db_options = ["merchant_data_dubai.db", "merchant_data_singapore.db"]
+new_selected_db = st.sidebar.selectbox("Select Database:", db_options, index=db_options.index(st.session_state.selected_db))
+
+# Check if the database selection has changed
+if new_selected_db != st.session_state.selected_db:
+    st.session_state.selected_db = new_selected_db
+    st.session_state.db_initialized = False  # Reset database initialization
+    st.sidebar.success(f"✅ Switched to database: {st.session_state.selected_db}")
+
+# Model Selection
+model_name = st.sidebar.selectbox("Select Model:", ["deepseek-r1-distill-llama-70b"]) #"llama3-70b-8192"
+
 # Email Template Selection
 template_options = ["email_task_description1.txt", "email_task_description2.txt", "email_task_description3.txt"]
 st.session_state.selected_template = st.sidebar.selectbox("Select Email Template:", template_options, index=template_options.index(st.session_state.selected_template))
 st.sidebar.success(f"✅ Selected Template: {st.session_state.selected_template}")
 
 # Initialize SQL Database and Agent
-if DATABASE and API_KEY and not st.session_state.db_initialized:
+if st.session_state.selected_db and api_key and not st.session_state.db_initialized:
     try:
-        # Initialize DeepSeek API client
-        deepseek_client = ChatDeepSeek(
-        temperature=0.6,
-        model_name=MODEL_NAME,
-        api_key=API_KEY
+        # Initialize Groq LLM
+        llm = ChatGroq(
+            temperature=0,
+            model_name=model_name,
+            api_key=st.session_state.api_key
         )
+
         # Initialize SQLDatabase
-        st.session_state.db = SQLDatabase.from_uri(f"sqlite:///{DATABASE}", sample_rows_in_table_info=3)
+        st.session_state.db = SQLDatabase.from_uri(f"sqlite:///{st.session_state.selected_db}", sample_rows_in_table_info=3)
 
         # Create SQL Agent
         st.session_state.agent_executor = create_sql_agent(
-            llm=deepseek_client,
+            llm=llm,
             db=st.session_state.db,
             agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
             verbose=True
@@ -251,15 +216,12 @@ def render_query_section():
                     st.session_state.raw_output = result['output'] if isinstance(result, dict) else result
                     
                     # Process raw output using an extraction agent 
-                    def extractor_llm(prompt):
-                        response = deepseek_client.generate(prompt)
-                        return response
-
+                    extractor_llm = LLM(model="groq/deepseek-r1-distill-llama-70b", api_key=st.session_state.api_key)
                     extractor_agent = Agent(
                         role="Data Extractor",
                         goal="Extract merchants, emails, reviews and anything posible from the raw output if they are only available.",
                         backstory="You are an expert in extracting structured information from text.",
-                        provider="DeepSeek",
+                        provider="Groq",
                         llm=extractor_llm 
                     )
                     
@@ -311,17 +273,14 @@ if st.session_state.interaction_history:
                     with st.spinner("Generating emails..."):
                         try:
                             # Define email generation agent 
-                            def email_llm(prompt):
-                                response = deepseek_client.generate(prompt)
-                                return response
-
+                            llm_email = LLM(model="groq/deepseek-r1-distill-llama-70b", api_key=st.session_state.api_key)
                             email_agent = Agent(
                                 role="Assume yourself as a lead Marketing Lead, with years of experiences working for leading merchant sourcing and acquiring companies such as wirecard, cardlytics, fave that has helped to connect with small to medium merchants to source an offer. Generate a personalized email for merchants with a compelling and curiosity-piquing subject line that feels authentic and human-crafted, ensuring the recipient does not perceive it as spam or automated",
                                 goal="Generate personalized marketing emails for merchants.Each email should contains around 150 words",
                                 backstory="You are a marketing expert named 'Jayan Nimna' of Pulse iD fintech company skilled in crafting professional and engaging emails for merchants.",
                                 verbose=True,
                                 allow_delegation=False,
-                                llm=email_llm 
+                                llm=llm_email 
                             )
 
                             # Read the task description from the selected template file

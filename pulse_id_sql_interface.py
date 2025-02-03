@@ -33,22 +33,33 @@ class ChatDeepSeek:
             base_url="https://api.kluster.ai/v1"  # Ensure this is the correct base URL
         )
 
-    def __call__(self, messages):
+    def generate(self, prompt, **kwargs):
+        messages = [{"role": "user", "content": prompt}]
         completion = self.client.chat.completions.create(
             model=self.model_name,
-            max_completion_tokens=2000,
+            max_tokens=kwargs.get("max_tokens", 2000),
             temperature=self.temperature,
             top_p=1,
             messages=messages
         )
         return completion.choices[0].message.content
 
+    async def agenerate(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+    def __call__(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+# Hardcoded API key, model, and database
+API_KEY = "219d97a9-7403-4cb2-bc19-4438f8e97a4d"  # Replace with your actual API key
+MODEL_NAME = "deepseek-ai/DeepSeek-R1"
+DATABASE = "merchant_data_singapore.db"
 
 # Initialize DeepSeek API client
 deepseek_client = ChatDeepSeek(
     temperature=0.6,
-    model_name="deepseek-ai/DeepSeek-R1",
-    api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d"  # Replace with your actual API key
+    model_name=MODEL_NAME,
+    api_key=API_KEY
 )
 
 # Page Configuration
@@ -72,12 +83,8 @@ if 'extraction_results' not in st.session_state:
     st.session_state.extraction_results = None
 if 'email_results' not in st.session_state:
     st.session_state.email_results = None
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ""
 if 'interaction_history' not in st.session_state:
     st.session_state.interaction_history = []  # Store all interactions (queries, results, emails)
-if 'selected_db' not in st.session_state:
-    st.session_state.selected_db = "merchant_data_singapore.db"  # Default database
 if 'db_initialized' not in st.session_state:
     st.session_state.db_initialized = False  # Track if the database is initialized
 if 'selected_template' not in st.session_state:
@@ -161,38 +168,16 @@ st.markdown(
 # Sidebar Configuration
 st.sidebar.header("Settings")
 
-def get_api_key():
-    """Function to get API Key from user input"""
-    return st.sidebar.text_input("Enter Your API Key:", type="password")
-
-# Get API Key
-api_key = get_api_key()
-if api_key:
-    st.session_state.api_key = api_key
-
-# Database Selection
-db_options = ["merchant_data_dubai.db", "merchant_data_singapore.db"]
-new_selected_db = st.sidebar.selectbox("Select Database:", db_options, index=db_options.index(st.session_state.selected_db))
-
-# Check if the database selection has changed
-if new_selected_db != st.session_state.selected_db:
-    st.session_state.selected_db = new_selected_db
-    st.session_state.db_initialized = False  # Reset database initialization
-    st.sidebar.success(f"✅ Switched to database: {st.session_state.selected_db}")
-
-# Model Selection
-model_name = st.sidebar.selectbox("Select Model:", ["deepseek-ai/DeepSeek-R1"])  # Use DeepSeek model
-
 # Email Template Selection
 template_options = ["email_task_description1.txt", "email_task_description2.txt", "email_task_description3.txt"]
 st.session_state.selected_template = st.sidebar.selectbox("Select Email Template:", template_options, index=template_options.index(st.session_state.selected_template))
 st.sidebar.success(f"✅ Selected Template: {st.session_state.selected_template}")
 
 # Initialize SQL Database and Agent
-if st.session_state.selected_db and api_key and not st.session_state.db_initialized:
+if DATABASE and API_KEY and not st.session_state.db_initialized:
     try:
         # Initialize SQLDatabase
-        st.session_state.db = SQLDatabase.from_uri(f"sqlite:///{st.session_state.selected_db}", sample_rows_in_table_info=3)
+        st.session_state.db = SQLDatabase.from_uri(f"sqlite:///{DATABASE}", sample_rows_in_table_info=3)
 
         # Create SQL Agent
         st.session_state.agent_executor = create_sql_agent(

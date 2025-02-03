@@ -415,3 +415,4 @@ st.markdown("---")
 st.markdown(
     "<div style='text-align: center; font-size: 14px;'>Powered by <strong>Pulse iD</strong> | Built with 🐍 Python and Streamlit</div>",
     unsafe_allow_html=True 
+)

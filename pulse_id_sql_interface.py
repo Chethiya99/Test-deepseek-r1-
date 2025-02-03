@@ -19,8 +19,8 @@ from openai import OpenAI  # Import OpenAI for DeepSeek
 
 # Initialize DeepSeek client
 client = OpenAI(
-    api_key="your_deepseek_api_key",  # Replace with your DeepSeek API key
-    base_url="https://api.deepseek.com/v1"  # Replace with the correct DeepSeek API base URL
+    api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d",  # Replace with your DeepSeek API key
+    base_url="https://api.kluster.ai/v1"  # Replace with the correct DeepSeek API base URL
 )
 
 # Page Configuration

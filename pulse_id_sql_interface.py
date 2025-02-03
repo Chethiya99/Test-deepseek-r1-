@@ -33,22 +33,16 @@ class ChatDeepSeek:
             base_url="https://api.kluster.ai/v1"  # Ensure this is the correct base URL
         )
 
-    def generate(self, prompt, **kwargs):
-        messages = [{"role": "user", "content": prompt}]
+    def __call__(self, messages):
         completion = self.client.chat.completions.create(
             model=self.model_name,
-            max_tokens=kwargs.get("max_tokens", 2000),
+            max_completion_tokens=2000,
             temperature=self.temperature,
             top_p=1,
             messages=messages
         )
         return completion.choices[0].message.content
 
-    async def agenerate(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
-
-    def __call__(self, prompt, **kwargs):
-        return self.generate(prompt, **kwargs)
 
 # Initialize DeepSeek API client
 deepseek_client = ChatDeepSeek(

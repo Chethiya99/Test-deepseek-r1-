@@ -45,7 +45,7 @@ class DeepSeekLLM(BaseLanguageModel):
         return self.generate(prompt, **kwargs)
 
 # Initialize DeepSeek API client
-deepseek_client = DeepSeekLLM(
+deepseek_client = OpenAI(
     api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d",  # Replace with your actual API key
     base_url="https://api.kluster.ai/v1",  # Ensure this is the correct base URL
     model_name="deepseek-ai/DeepSeek-R1"

@@ -7,6 +7,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from openai import OpenAI  # Import OpenAI for DeepSeek API
+from langchain_core.language_models import BaseLanguageModel
+from langchain_core.callbacks import CallbackManager
+from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
 
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import re
@@ -18,10 +22,33 @@ from langchain.agents import AgentType
 from langchain_community.llms import Ollama
 from crewai import Agent, Task, Crew, Process, LLM
 
+# Custom DeepSeek LLM wrapper
+class DeepSeekLLM(BaseLanguageModel):
+    def __init__(self, api_key, base_url, model_name):
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model_name = model_name
+
+    def generate(self, prompt, **kwargs):
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=kwargs.get("max_tokens", 2000),
+            temperature=kwargs.get("temperature", 0.6),
+            top_p=kwargs.get("top_p", 1)
+        )
+        return response.choices[0].message.content
+
+    async def agenerate(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+    def __call__(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
 # Initialize DeepSeek API client
-deepseek_client = OpenAI(
+deepseek_client = DeepSeekLLM(
     api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d",  # Replace with your actual API key
-    base_url="https://api.kluster.ai/v1"  # Ensure this is the correct base URL
+    base_url="https://api.kluster.ai/v1",  # Ensure this is the correct base URL
+    model_name="deepseek-ai/DeepSeek-R1"
 )
 
 # Page Configuration
@@ -164,23 +191,12 @@ st.sidebar.success(f"✅ Selected Template: {st.session_state.selected_template}
 # Initialize SQL Database and Agent
 if st.session_state.selected_db and api_key and not st.session_state.db_initialized:
     try:
-        # Initialize DeepSeek LLM
-        def deepseek_llm(prompt):
-            response = deepseek_client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=2000,
-                temperature=0.6,
-                top_p=1
-            )
-            return response.choices[0].message.content
-
         # Initialize SQLDatabase
         st.session_state.db = SQLDatabase.from_uri(f"sqlite:///{st.session_state.selected_db}", sample_rows_in_table_info=3)
 
         # Create SQL Agent
         st.session_state.agent_executor = create_sql_agent(
-            llm=deepseek_llm,
+            llm=deepseek_client,
             db=st.session_state.db,
             agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
             verbose=True
@@ -226,14 +242,8 @@ def render_query_section():
                     
                     # Process raw output using an extraction agent 
                     def extractor_llm(prompt):
-                        response = deepseek_client.chat.completions.create(
-                            model=model_name,
-                            messages=[{"role": "user", "content": prompt}],
-                            max_tokens=2000,
-                            temperature=0.6,
-                            top_p=1
-                        )
-                        return response.choices[0].message.content
+                        response = deepseek_client.generate(prompt)
+                        return response
 
                     extractor_agent = Agent(
                         role="Data Extractor",
@@ -292,14 +302,8 @@ if st.session_state.interaction_history:
                         try:
                             # Define email generation agent 
                             def email_llm(prompt):
-                                response = deepseek_client.chat.completions.create(
-                                    model=model_name,
-                                    messages=[{"role": "user", "content": prompt}],
-                                    max_tokens=2000,
-                                    temperature=0.6,
-                                    top_p=1
-                                )
-                                return response.choices[0].message.content
+                                response = deepseek_client.generate(prompt)
+                                return response
 
                             email_agent = Agent(
                                 role="Assume yourself as a lead Marketing Lead, with years of experiences working for leading merchant sourcing and acquiring companies such as wirecard, cardlytics, fave that has helped to connect with small to medium merchants to source an offer. Generate a personalized email for merchants with a compelling and curiosity-piquing subject line that feels authentic and human-crafted, ensuring the recipient does not perceive it as spam or automated",

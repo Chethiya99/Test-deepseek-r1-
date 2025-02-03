@@ -6,7 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-from openai import OpenAI  # Import OpenAI for DeepSeek API
+from openai import OpenAI
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.callbacks import CallbackManager
 from langchain_core.prompts import PromptTemplate
@@ -22,21 +22,27 @@ from langchain.agents import AgentType
 from langchain_community.llms import Ollama
 from crewai import Agent, Task, Crew, Process, LLM
 
-# Custom DeepSeek LLM wrapper
-class DeepSeekLLM(BaseLanguageModel):
-    def __init__(self, api_key, base_url, model_name):
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+# Custom DeepSeek LLM wrapper using your ChatDeepSeek class
+class ChatDeepSeek(BaseLanguageModel):
+    def __init__(self, temperature=0.6, model_name="deepseek-ai/DeepSeek-R1", api_key=None):
+        self.temperature = temperature
         self.model_name = model_name
+        self.api_key = api_key
+        self.client = OpenAI(
+            api_key=self.api_key,
+            base_url="https://api.kluster.ai/v1"  # Ensure this is the correct base URL
+        )
 
     def generate(self, prompt, **kwargs):
-        response = self.client.chat.completions.create(
+        messages = [{"role": "user", "content": prompt}]
+        completion = self.client.chat.completions.create(
             model=self.model_name,
-            messages=[{"role": "user", "content": prompt}],
             max_tokens=kwargs.get("max_tokens", 2000),
-            temperature=kwargs.get("temperature", 0.6),
-            top_p=kwargs.get("top_p", 1)
+            temperature=self.temperature,
+            top_p=1,
+            messages=messages
         )
-        return response.choices[0].message.content
+        return completion.choices[0].message.content
 
     async def agenerate(self, prompt, **kwargs):
         return self.generate(prompt, **kwargs)
@@ -45,9 +51,10 @@ class DeepSeekLLM(BaseLanguageModel):
         return self.generate(prompt, **kwargs)
 
 # Initialize DeepSeek API client
-deepseek_client = OpenAI(
-    api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d",  # Replace with your actual API key
-    base_url="https://api.kluster.ai/v1"  # Ensure this is the correct base URL
+deepseek_client = ChatDeepSeek(
+    temperature=0.6,
+    model_name="deepseek-ai/DeepSeek-R1",
+    api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d"  # Replace with your actual API key
 )
 
 # Page Configuration
@@ -408,4 +415,3 @@ st.markdown("---")
 st.markdown(
     "<div style='text-align: center; font-size: 14px;'>Powered by <strong>Pulse iD</strong> | Built with 🐍 Python and Streamlit</div>",
     unsafe_allow_html=True 
-)

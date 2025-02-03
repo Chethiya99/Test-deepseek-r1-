@@ -6,6 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from openai import OpenAI  # Import OpenAI for DeepSeek API
 
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import re
@@ -13,15 +14,14 @@ import pandas as pd
 import streamlit as st
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
-from langchain_groq import ChatGroq
 from langchain.agents import AgentType
-from crewai import Agent, Task, Crew, Process
-from openai import OpenAI  # Import OpenAI for DeepSeek
+from langchain_community.llms import Ollama
+from crewai import Agent, Task, Crew, Process, LLM
 
-# Initialize DeepSeek client
-client = OpenAI(
-    api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d",  # Replace with your DeepSeek API key
-    base_url="https://api.kluster.ai/v1"  # Replace with the correct DeepSeek API base URL
+# Initialize DeepSeek API client
+deepseek_client = OpenAI(
+    api_key="219d97a9-7403-4cb2-bc19-4438f8e97a4d",  # Replace with your actual API key
+    base_url="https://api.kluster.ai/v1"  # Ensure this is the correct base URL
 )
 
 # Page Configuration
@@ -154,7 +154,7 @@ if new_selected_db != st.session_state.selected_db:
     st.sidebar.success(f"✅ Switched to database: {st.session_state.selected_db}")
 
 # Model Selection
-model_name = st.sidebar.selectbox("Select Model:", ["deepseek-ai/DeepSeek-R1"])  # Only DeepSeek model
+model_name = st.sidebar.selectbox("Select Model:", ["deepseek-ai/DeepSeek-R1"])  # Use DeepSeek model
 
 # Email Template Selection
 template_options = ["email_task_description1.txt", "email_task_description2.txt", "email_task_description3.txt"]
@@ -164,19 +164,23 @@ st.sidebar.success(f"✅ Selected Template: {st.session_state.selected_template}
 # Initialize SQL Database and Agent
 if st.session_state.selected_db and api_key and not st.session_state.db_initialized:
     try:
-        # Initialize Groq LLM
-        llm = ChatGroq(
-            temperature=0,
-            model_name='llama3-70b-8192',
-            api_key=st.session_state.api_key
-        )
+        # Initialize DeepSeek LLM
+        def deepseek_llm(prompt):
+            response = deepseek_client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2000,
+                temperature=0.6,
+                top_p=1
+            )
+            return response.choices[0].message.content
 
         # Initialize SQLDatabase
         st.session_state.db = SQLDatabase.from_uri(f"sqlite:///{st.session_state.selected_db}", sample_rows_in_table_info=3)
 
         # Create SQL Agent
         st.session_state.agent_executor = create_sql_agent(
-            llm=llm,  # Use DeepSeek client
+            llm=deepseek_llm,
             db=st.session_state.db,
             agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
             verbose=True
@@ -221,12 +225,22 @@ def render_query_section():
                     st.session_state.raw_output = result['output'] if isinstance(result, dict) else result
                     
                     # Process raw output using an extraction agent 
+                    def extractor_llm(prompt):
+                        response = deepseek_client.chat.completions.create(
+                            model=model_name,
+                            messages=[{"role": "user", "content": prompt}],
+                            max_tokens=2000,
+                            temperature=0.6,
+                            top_p=1
+                        )
+                        return response.choices[0].message.content
+
                     extractor_agent = Agent(
                         role="Data Extractor",
                         goal="Extract merchants, emails, reviews and anything posible from the raw output if they are only available.",
                         backstory="You are an expert in extracting structured information from text.",
                         provider="DeepSeek",
-                        llm=client  # Use DeepSeek client
+                        llm=extractor_llm 
                     )
                     
                     extract_task = Task(
@@ -277,13 +291,23 @@ if st.session_state.interaction_history:
                     with st.spinner("Generating emails..."):
                         try:
                             # Define email generation agent 
+                            def email_llm(prompt):
+                                response = deepseek_client.chat.completions.create(
+                                    model=model_name,
+                                    messages=[{"role": "user", "content": prompt}],
+                                    max_tokens=2000,
+                                    temperature=0.6,
+                                    top_p=1
+                                )
+                                return response.choices[0].message.content
+
                             email_agent = Agent(
                                 role="Assume yourself as a lead Marketing Lead, with years of experiences working for leading merchant sourcing and acquiring companies such as wirecard, cardlytics, fave that has helped to connect with small to medium merchants to source an offer. Generate a personalized email for merchants with a compelling and curiosity-piquing subject line that feels authentic and human-crafted, ensuring the recipient does not perceive it as spam or automated",
                                 goal="Generate personalized marketing emails for merchants.Each email should contains around 150 words",
                                 backstory="You are a marketing expert named 'Jayan Nimna' of Pulse iD fintech company skilled in crafting professional and engaging emails for merchants.",
                                 verbose=True,
                                 allow_delegation=False,
-                                llm=client  # Use DeepSeek client
+                                llm=email_llm 
                             )
 
                             # Read the task description from the selected template file
@@ -375,7 +399,6 @@ render_query_section()
 if st.session_state.trigger_rerun:
     st.session_state.trigger_rerun = False  # Reset the trigger
     st.rerun()  # Force a re-run of the script
-
 
 # Footer Section 
 st.markdown("---")

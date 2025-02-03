@@ -13,6 +13,7 @@ import pandas as pd
 import streamlit as st
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
+from langchain_groq import ChatGroq
 from langchain.agents import AgentType
 from crewai import Agent, Task, Crew, Process
 from openai import OpenAI  # Import OpenAI for DeepSeek
@@ -163,6 +164,13 @@ st.sidebar.success(f"✅ Selected Template: {st.session_state.selected_template}
 # Initialize SQL Database and Agent
 if st.session_state.selected_db and api_key and not st.session_state.db_initialized:
     try:
+        # Initialize Groq LLM
+        llm = ChatGroq(
+            temperature=0,
+            model_name=model_name,
+            api_key=st.session_state.api_key
+        )
+
         # Initialize SQLDatabase
         st.session_state.db = SQLDatabase.from_uri(f"sqlite:///{st.session_state.selected_db}", sample_rows_in_table_info=3)
 

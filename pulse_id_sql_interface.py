@@ -23,7 +23,7 @@ from langchain_community.llms import Ollama
 from crewai import Agent, Task, Crew, Process, LLM
 
 # Custom DeepSeek LLM wrapper using your ChatDeepSeek class
-class ChatDeepSeek:
+class ChatDeepSeek(BaseLanguageModel):
     def __init__(self, temperature=0.6, model_name="deepseek-ai/DeepSeek-R1", api_key=None):
         self.temperature = temperature
         self.model_name = model_name
@@ -48,6 +48,29 @@ class ChatDeepSeek:
         return self.generate(prompt, **kwargs)
 
     def __call__(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+    def agenerate_prompt(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+    def apredict(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+    def apredict_messages(self, messages, **kwargs):
+        prompt = "\n".join([msg.content for msg in messages])
+        return self.generate(prompt, **kwargs)
+
+    def generate_prompt(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+    def invoke(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+    def predict(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+    def predict_messages(self, messages, **kwargs):
+        prompt = "\n".join([msg.content for msg in messages])
         return self.generate(prompt, **kwargs)
 
 # Hardcoded API key, model, and database

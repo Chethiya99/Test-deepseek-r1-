@@ -176,6 +176,12 @@ st.sidebar.success(f"✅ Selected Template: {st.session_state.selected_template}
 # Initialize SQL Database and Agent
 if DATABASE and API_KEY and not st.session_state.db_initialized:
     try:
+        # Initialize DeepSeek API client
+        deepseek_client = ChatDeepSeek(
+        temperature=0.6,
+        model_name=MODEL_NAME,
+        api_key=API_KEY
+        )
         # Initialize SQLDatabase
         st.session_state.db = SQLDatabase.from_uri(f"sqlite:///{DATABASE}", sample_rows_in_table_info=3)
 

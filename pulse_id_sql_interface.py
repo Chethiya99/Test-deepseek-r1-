@@ -23,7 +23,7 @@ from langchain_community.llms import Ollama
 from crewai import Agent, Task, Crew, Process, LLM
 
 # Custom DeepSeek LLM wrapper using your ChatDeepSeek class
-class ChatDeepSeek(BaseLanguageModel):
+class ChatDeepSeek:
     def __init__(self, temperature=0.6, model_name="deepseek-ai/DeepSeek-R1", api_key=None):
         self.temperature = temperature
         self.model_name = model_name

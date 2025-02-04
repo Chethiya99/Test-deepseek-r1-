@@ -162,7 +162,7 @@ if st.session_state.selected_db and api_key and not st.session_state.db_initiali
         # Initialize Groq LLM
         llm = ChatGroq(
             temperature=0,
-            model_name=model_name,
+            model_name='llama3-70b-8192',
             api_key=st.session_state.api_key
         )
 

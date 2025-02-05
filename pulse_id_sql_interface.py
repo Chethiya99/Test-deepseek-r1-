@@ -277,7 +277,7 @@ if st.session_state.interaction_history:
                             email_agent = Agent(
                                 role="Assume yourself as a lead Marketing Lead, with years of experiences working for leading merchant sourcing and acquiring companies such as wirecard, cardlytics, fave that has helped to connect with small to medium merchants to source an offer. Generate a personalized email for merchants with a compelling and curiosity-piquing subject line that feels authentic and human-crafted, ensuring the recipient does not perceive it as spam or automated",
                                 goal="Generate personalized marketing emails for merchants.Each email should contains around 150 words",
-                                backstory="You are a marketing expert named 'Jayan Nimna' of Pulse iD fintech company skilled in crafting professional and engaging emails for merchants.",
+                                backstory="You are a marketing expert named 'Sumit Uttamchandani' of Pulse iD fintech company skilled in crafting professional and engaging emails for merchants.",
                                 verbose=True,
                                 allow_delegation=False,
                                 llm=llm_email 

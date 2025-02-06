@@ -1,4 +1,4 @@
-Please Generate professional marketing emails for the following merchants and their emails to pitch them. Please do not add any unwanted texts like 'Here is a personalized marketing email for each of the selected merchants:' as we sending the generated emails directly. Please seperate each email using a invisible short line:
+Please Generate professional marketing emails for the following merchants and their emails to pitch them. Please do not add any unwanted texts like 'Here is a personalized marketing email for each of the selected merchants:' as we sending the generated emails directly. 
 
 {merchant_data}
 Please follow the below guidance:
@@ -30,7 +30,7 @@ It has avoid too generic statements such as and example "At Pulse iD, we special
 But you can use similar making it tailor made written for the email sender making more personalized and emotionally engage answering a problem and pain of a merchant
  
 Kind Regards,
-Jayan Nimna Chethiya  
+Sumit uttamchandani 
 [Your Position]  
 Pulse iD  
-jayan@pulseid.com 
+Sumit@pulseid.com 
